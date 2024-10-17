@@ -1,4 +1,3 @@
-import copy
 from collections import defaultdict
 from dataclasses import dataclass
 
@@ -91,18 +90,19 @@ class CircuitComposer:
             edge_sets[tuple(edge.differing_dimensions)].append(edge)
 
         layer_time = total_time / num_layers
-        overall_qc = QuantumCircuit(edges[0].coordinates.shape[1])
+        layer_qc = QuantumCircuit(edges[0].coordinates.shape[1])
         for edge_set in edge_sets.values():
             diff_dims = edge_set[0].differing_dimensions
             cx_gates = self.find_cx_arrangement(len(diff_dims))
             cx_gates = [diff_dims[gate] for gate in cx_gates]
             straight_edge_set = self.apply_cx(edge_set, cx_gates)
 
-            cx_qc = self.compose_cx(cx_gates, overall_qc.num_qubits)
+            cx_qc = self.compose_cx(cx_gates, layer_qc.num_qubits)
             edge_set_qc = self.compose_straight(straight_edge_set, layer_time)
-            overall_qc = overall_qc.compose(cx_qc).compose(edge_set_qc).compose(cx_qc.inverse())
+            layer_qc = layer_qc.compose(cx_qc).compose(edge_set_qc).compose(cx_qc.inverse())
 
-        for _ in range(num_layers - 1):
-            overall_qc = overall_qc.compose(overall_qc)
+        overall_qc = QuantumCircuit(edges[0].coordinates.shape[1])
+        for _ in range(num_layers):
+            overall_qc = overall_qc.compose(layer_qc)
 
         return overall_qc
