@@ -7,17 +7,16 @@ from qiskit import QuantumCircuit
 from qiskit.circuit.library import RXGate
 
 from src.edge import Edge
-from src.edge_group import EdgeGroup
-from src.group_merger import GroupMerger
+from src.edge_merger import EdgeMerger
 
 
 @dataclass
 class CircuitComposer:
     """
     Class that composes quantum circuits implementing given continuous time quantum walks on arbitrary graphs.
-    :var group_merger: GroupMerger object that decides how to group edges.
+    :var edge_merger: EdgeMerger object that decides how to group edges.
     """
-    group_merger: GroupMerger
+    edge_merger: EdgeMerger
 
     @staticmethod
     def find_cx_arrangement(total_differ: int) -> list[ndarray]:
@@ -64,15 +63,14 @@ class CircuitComposer:
         :return: Quantum circuit implementing the given quantum walk.
         """
         edge_dim = np.where(edges[0].coordinates[0, :] != edges[0].coordinates[1, :])[0][0]
-        edge_groups = [EdgeGroup.from_straight_edge(edge, i) for i, edge in enumerate(edges)]
-        edge_groups = self.group_merger.merge_groups(edge_groups)
+        edge_groups = self.edge_merger.merge_edges(edges)
 
         qc = QuantumCircuit(edges[0].coordinates.shape[1])
         for group in edge_groups:
             rx_gate = RXGate(2 * time)
             control_inds = np.where(group.coordinates != -1)[0]
             if len(control_inds) > 0:
-                control_state = ''.join([str(s) for s in group.coordinates[control_inds]])
+                control_state = ''.join([str(s) for s in group.coordinates[control_inds][::-1]])
                 rx_gate = rx_gate.control(len(control_inds), ctrl_state=control_state)
             qc.append(rx_gate, control_inds.tolist() + [edge_dim])
         return qc
@@ -98,8 +96,9 @@ class CircuitComposer:
             straight_edge_set = self.apply_cx(edge_set, cx_gates)
 
             cx_qc = self.compose_cx(cx_gates, layer_qc.num_qubits)
-            edge_set_qc = self.compose_straight(straight_edge_set, layer_time)
-            layer_qc = layer_qc.compose(cx_qc).compose(edge_set_qc).compose(cx_qc.inverse())
+            straight_edge_set_qc = self.compose_straight(straight_edge_set, layer_time)
+            edge_set_qc = QuantumCircuit(layer_qc.num_qubits).compose(cx_qc).compose(straight_edge_set_qc).compose(cx_qc.inverse())
+            layer_qc = layer_qc.compose(edge_set_qc)
 
         overall_qc = QuantumCircuit(edges[0].coordinates.shape[1])
         for _ in range(num_layers):

@@ -3,6 +3,7 @@ import pickle
 from functools import partial
 from multiprocessing import Pool
 
+import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import pandas as pd
@@ -17,14 +18,14 @@ from tqdm import tqdm
 from src.circuit_composer import CircuitComposer
 from src.edge import Edge
 from src.graph_embedder import GraphEmbedder, GraphEmbedderTrivial
-from src.group_merger import GroupMerger
+from src.edge_merger import EdgeMerger
 
 
 def generate_graphs():
-    num_graphs = 100
+    num_graphs = 10
     max_attempts = 10 ** 5
-    nodes = 10
-    edges = 9
+    nodes = 8
+    edges = 7
     out_path = f'data/nodes_{nodes}/edges_{edges}'
 
     graphs = []
@@ -62,7 +63,7 @@ def generate_graphs():
 
 def graph_to_edge_list(graph: Graph, num_qubits: int, embedding: list[int]) -> list[Edge]:
     """
-    Converts a given _graph_ embedded in a hypercube according to _embedding_ to a list of edges in the hypercube.
+    Converts a given graph embedded in a hypercube according to embedding to a list of edges in the hypercube.
     :param graph: Graph to convert.
     :param num_qubits: Number of qubits for the hypercube.
     :param embedding: List of indices, where i-th element gives hypercube node index corresponding to i-th graph node.
@@ -73,7 +74,7 @@ def graph_to_edge_list(graph: Graph, num_qubits: int, embedding: list[int]) -> l
     for edge in graph.edges:
         coordinates = []
         for node in edge:
-            coordinates.append([int(c) for c in format(embedding[node], f'0{num_qubits}b')])
+            coordinates.append([int(c) for c in format(embedding[node], f'0{num_qubits}b')[::-1]])
         edges.append(Edge(np.array(coordinates)))
     return edges
 
@@ -101,6 +102,7 @@ def process_row(df_row: tuple[int, Series], graphs: list[Graph], graph_embedder:
     """
     index, series = df_row
     graph = graphs[index]
+
     adjacency_matrix = nx.adjacency_matrix(graph).toarray()
     num_qubits = round(np.ceil(np.log2(len(graph))))
     embedding = graph_embedder.embed(graph, num_qubits)
@@ -109,7 +111,7 @@ def process_row(df_row: tuple[int, Series], graphs: list[Graph], graph_embedder:
 
     exact_operator = Operator(lin.expm(-1j * walk_time * hypercube_adjacency))
     exact_qc = QuantumCircuit(num_qubits)
-    exact_qc.append(exact_operator)
+    exact_qc.append(exact_operator, list(range(num_qubits)))
     exact_cx, exact_depth = get_circuit_complexity(exact_qc, basis_gates, optimization_level)
 
     edges = graph_to_edge_list(graph, num_qubits, embedding)
@@ -117,6 +119,7 @@ def process_row(df_row: tuple[int, Series], graphs: list[Graph], graph_embedder:
     subgraph_cx, subgraph_depth = get_circuit_complexity(subgraph_qc, basis_gates, optimization_level)
     subgraph_operator = Operator(subgraph_qc).data
     diff_norm = lin.norm(exact_operator - subgraph_operator, 2)
+    print(diff_norm)
 
     series['exact_cx'] = exact_cx
     series['exact_depth'] = exact_depth
@@ -127,15 +130,15 @@ def process_row(df_row: tuple[int, Series], graphs: list[Graph], graph_embedder:
 
 
 def main():
-    num_nodes = 10
-    num_edges = 9
+    num_nodes = 8
+    num_edges = 7
     walk_time = 0.1
-    num_layers = 1
+    num_layers = 2
     basis_gates = ['rx', 'ry', 'rz', 'cx']
     optimization_level = 3
     num_workers = 1
     graph_embedder = GraphEmbedderTrivial()
-    group_merger = GroupMerger()
+    group_merger = EdgeMerger()
     circuit_composer = CircuitComposer(group_merger)
     process_func = partial(process_row, graph_embedder=graph_embedder, walk_time=walk_time, circuit_composer=circuit_composer, num_layers=num_layers, basis_gates=basis_gates,
                            optimization_level=optimization_level)

@@ -26,7 +26,7 @@ class EdgeGroup:
         :param edge_ind: Index of the edge in a larger set.
         :return: Converted edge.
         """
-        edge_group = EdgeGroup(edge.coordinates[0, :], [edge_ind])
+        edge_group = EdgeGroup(np.copy(edge.coordinates[0, :]), [edge_ind])
         edge_dim = np.where(edge.coordinates[0, :] != edge.coordinates[1, :])[0][0]
         edge_group.coordinates[edge_dim] = -1
         return edge_group
