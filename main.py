@@ -74,7 +74,7 @@ def graph_to_edge_list(graph: Graph, num_qubits: int, embedding: list[int]) -> l
     for edge in graph.edges:
         coordinates = []
         for node in edge:
-            coordinates.append([int(c) for c in format(embedding[node], f'0{num_qubits}b')[::-1]])
+            coordinates.append([int(c) for c in format(embedding[node], f'0{num_qubits}b')])
         edges.append(Edge(np.array(coordinates)))
     return edges
 

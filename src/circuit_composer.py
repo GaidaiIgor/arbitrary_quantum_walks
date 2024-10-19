@@ -70,9 +70,9 @@ class CircuitComposer:
             rx_gate = RXGate(2 * time)
             control_inds = np.where(group.coordinates != -1)[0]
             if len(control_inds) > 0:
-                control_state = ''.join([str(s) for s in group.coordinates[control_inds][::-1]])
+                control_state = ''.join([str(s) for s in group.coordinates[control_inds]])[::-1]
                 rx_gate = rx_gate.control(len(control_inds), ctrl_state=control_state)
-            qc.append(rx_gate, control_inds.tolist() + [edge_dim])
+            qc.append(rx_gate, list(control_inds) + [edge_dim])
         return qc
 
     def compose(self, edges: list[Edge], total_time: float, num_layers: int = 1) -> QuantumCircuit:
@@ -104,4 +104,4 @@ class CircuitComposer:
         for _ in range(num_layers):
             overall_qc = overall_qc.compose(layer_qc)
 
-        return overall_qc
+        return overall_qc.reverse_bits()
