@@ -24,8 +24,8 @@ from src.edge_merger import EdgeMerger
 def generate_graphs():
     num_graphs = 10
     max_attempts = 10 ** 5
-    nodes = 8
-    edges = 7
+    nodes = 9
+    edges = 8
     out_path = f'data/nodes_{nodes}/edges_{edges}'
 
     graphs = []
@@ -119,7 +119,6 @@ def process_row(df_row: tuple[int, Series], graphs: list[Graph], graph_embedder:
     subgraph_cx, subgraph_depth = get_circuit_complexity(subgraph_qc, basis_gates, optimization_level)
     subgraph_operator = Operator(subgraph_qc).data
     diff_norm = lin.norm(exact_operator - subgraph_operator, 2)
-    print(diff_norm)
 
     series['exact_cx'] = exact_cx
     series['exact_depth'] = exact_depth
@@ -130,10 +129,10 @@ def process_row(df_row: tuple[int, Series], graphs: list[Graph], graph_embedder:
 
 
 def main():
-    num_nodes = 8
-    num_edges = 7
+    num_nodes = 10
+    num_edges = 9
     walk_time = 0.1
-    num_layers = 2
+    num_layers = 1
     basis_gates = ['rx', 'ry', 'rz', 'cx']
     optimization_level = 3
     num_workers = 1
